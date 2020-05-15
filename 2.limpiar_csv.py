@@ -82,4 +82,4 @@ with open('resultado_limpio_metro.csv', 'w', newline='', encoding="utf-8-sig") a
                                     str("-" if linea_diccionario['stop_timezone'] is None else linea_diccionario['stop_timezone']),
                                     str("-" if linea_diccionario['wheelchair_boarding'] is None else linea_diccionario['wheelchair_boarding'])])
 
-print("terminado TODO")
+print("terminada creación csv")

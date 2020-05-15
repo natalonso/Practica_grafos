@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <title>Red de Metro de Madrid</title>
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+    </head>
+
+    <style>
+        .links line {
+            stroke: #999;
+        }
+
+        .nodes circle {
+            stroke: #fff;
+            stroke-width: 1px;
+        }
+
+        text {
+            font-family: sans-serif;
+            font-size: 15px;
+        }
+
+        div.tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 2px;
+            font: 15px sans-serif;
+            font-weight: bold;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+
+    </style>
+
+    <body>
+
+        <div id="content">
+            <svg width="1300" height="1000">
+                <rect width="1300" height="1000" style="stroke-width: 8px; stroke: black; fill-opacity: 0.0"/>
+            </svg>
+        </div>
+
+
+        <script>
+
+            var svg = d3.select("svg"),
+                width = +svg.attr("width"),
+                height = +svg.attr("height");
+
+            var scale_x = d3.scaleLinear()
+                .domain([-3.9, -3.4])
+                .range([0, width]);
+
+            var x_axis = d3.axisBottom()
+                .scale(scale_x);
+
+            var scale_y = d3.scaleLinear()
+                .domain([40.2, 40.6])
+                .range([height, 0]);
+
+            var y_axis = d3.axisLeft()
+                .scale(scale_y);
+
+            var div = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+
+            d3.json("grafo_completo.json", function(error, graph) {
+                if (error) throw error;
+
+                var link = svg
+                    .append("g")
+                    .attr("class", "links")
+                    .selectAll("line")
+                    .data(graph.links)
+                    .enter().append("line")
+                    .style("stroke", function (d) {return colorForType(d)})
+                    .style("stroke-opacity", "1")
+                    .attr("stroke-width", function(d) { return  d['betweenness']*25+4;})
+                    .attr("x1", function(d) {return scale_x(d['source_lon']);})
+                    .attr("y1", function(d) {return scale_y(d['source_lat']);})
+                    .attr("x2", function(d) {return scale_x(d['target_lon']);})
+                    .attr("y2", function(d) {return scale_y(d['target_lat']);})
+
+
+                var node = svg.append("g")
+                    .attr("class", "nodes")
+                    .selectAll("g")
+                    .data(graph.nodes)
+                    .enter()
+                    .append("g")
+
+                var circles = node
+                    .append("circle")
+                    .attr("r", function (d) { return d['betweenness']*15+4;})
+                    .attr("cx", function (d) { return scale_x(d['lon']);})
+                    .attr("cy", function (d) { return scale_y(d['lat']);})
+
+                    .on("mouseover", function(d) {
+                        d3.select( this )
+                            .raise()
+                            .attr("r", 7)
+                            div.transition()
+                                .duration(200)
+                                .style("opacity", 1);
+                            div.html(d['id'])
+                                .style("left", (d3.event.pageX) + "px")
+                                .style("top", (d3.event.pageY-28) + "px");
+                    })
+
+                    .on("mouseout", function(d) {
+                        d3
+                            .select( this )
+                            .raise()
+                            .transition()
+                            .attr("r", function (d) { return d['betweenness']*15+4;});
+                        div
+                            .transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    })
+
+                    .call(d3.drag()
+                        .on("start", drag_start)
+                        .on("drag", dragged)
+                        .on("end", drag_end)
+                    );
+
+                function drag_start(d) {
+                    d3.select(this)
+                        .attr("cx", d3.event.x)
+                        .attr("cy", d3.event.y);
+
+                    link.filter(function(l) { return l.source === d.id; })
+                        .attr("x1", d3.event.x)
+                        .attr("y1", d3.event.y);
+
+                    link.filter(function(l) { return l.target === d.id; })
+                        .attr("x2", d3.event.x)
+                        .attr("y2", d3.event.y);
+                }
+
+                function dragged(d) {
+                    d3.select(this)
+                        .attr("cx", d3.event.x)
+                        .attr("cy", d3.event.y);
+
+                    link.filter(function(l) { return l.source === d.id; })
+                        .attr("x1", d3.event.x)
+                        .attr("y1", d3.event.y);
+
+                    link.filter(function(l) { return l.target === d.id; })
+                        .attr("x2", d3.event.x)
+                        .attr("y2", d3.event.y);
+                }
+
+                function drag_end(d) {
+                    d3.select(this)
+                        .attr("cx", function (d) { return scale_x(d['lon']);})
+                        .attr("cy", function (d) { return scale_y(d['lat']);});
+
+                    link.filter(function(l) { return l.source === d.id; })
+                        .attr("x1", function(d) {return scale_x(d['source_lon']);})
+                        .attr("y1", function(d) {return scale_y(d['source_lat']);});
+
+                    link.filter(function(l) { return l.target === d.id; })
+                        .attr("x2", function(d) {return scale_x(d['target_lon']);})
+                        .attr("y2", function(d) {return scale_y(d['target_lat']);});
+                }
+
+            });
+
+            function colorForType(d) {
+                switch (d["line"]) {
+                    case '1': return "lightblue"; <!--azul clarito-->
+                    case '2': return "red"; <!--roja-->
+                    case '3': return "gold"; <!--amarillo-->
+                    case '4': return "brown"; <!--marron-->
+                    case '5': return "lightgreen"; <!--verde claro-->
+                    case '6': return "grey"; <!--gris-->
+                    case '7': return "orange"; <!--naranja-->
+                    case '8': return "pink"; <!--rosa-->
+                    case '9': return "purple"; <!--morado-->
+                    case '10': return "darkblue"; <!--azul oscuro-->
+                    case '11': return "darkgreen"; <!--verde oscuro-->
+                    case '12': return "olive"; <!--marron kk-->
+                    case 'R': return "black"; <!--negra-->
+                }
+            }
+
+            svg.append("circle").attr("cx",100).attr("cy",100).attr("r", 6).style("fill", "lightblue")
+            svg.append("text").attr("x", 120).attr("y", 100).text("Linea 1").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",120).attr("r", 6).style("fill", "red")
+            svg.append("text").attr("x", 120).attr("y", 120).text("Linea 2").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",140).attr("r", 6).style("fill", "gold")
+            svg.append("text").attr("x", 120).attr("y", 140).text("Linea 3").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",160).attr("r", 6).style("fill", "brown")
+            svg.append("text").attr("x", 120).attr("y", 160).text("Linea 4").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",180).attr("r", 6).style("fill", "lightgreen")
+            svg.append("text").attr("x", 120).attr("y", 180).text("Linea 5").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",200).attr("r", 6).style("fill", "grey")
+            svg.append("text").attr("x", 120).attr("y", 200).text("Linea 6").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",220).attr("r", 6).style("fill", "orange")
+            svg.append("text").attr("x", 120).attr("y", 220).text("Linea 7").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",240).attr("r", 6).style("fill", "pink")
+            svg.append("text").attr("x", 120).attr("y", 240).text("Linea 8").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",260).attr("r", 6).style("fill", "purple")
+            svg.append("text").attr("x", 120).attr("y", 260).text("Linea 9").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",280).attr("r", 6).style("fill", "darkblue")
+            svg.append("text").attr("x", 120).attr("y", 280).text("Linea 10").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",300).attr("r", 6).style("fill", "darkgreen")
+            svg.append("text").attr("x", 120).attr("y", 300).text("Linea 11").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",320).attr("r", 6).style("fill", "olive")
+            svg.append("text").attr("x", 120).attr("y", 320).text("Linea 12").style("font-size", "15px").attr("alignment-baseline","middle")
+
+            svg.append("circle").attr("cx",100).attr("cy",340).attr("r", 6).style("fill", "black")
+            svg.append("text").attr("x", 120).attr("y", 340).text("R").style("font-size", "15px").attr("alignment-baseline","middle")
+
+        </script>
+    </body>
+</html>
